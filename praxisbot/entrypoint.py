@@ -102,7 +102,7 @@ async def get_driver_info(
 ) -> Optional[DriverInfo]:
     # noinspection PyBroadException
     try:
-        status = await ir.driver_status(cust_id="asdlfkj")
+        status = await ir.driver_status(cust_id=customer_id)
     except Exception:
         return None
 

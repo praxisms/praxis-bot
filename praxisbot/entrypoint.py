@@ -109,7 +109,7 @@ async def get_driver_info(ir: PyracingClient, customer_id: str) -> DriverInfo:
     )
 
 
-async def main():
+async def async_main():
     args = parse_arguments(argv[1:])
     ir = PyracingClient(
         username=args.iracing_user,
@@ -135,8 +135,12 @@ async def main():
     )
 
 
-if __name__ == "__main__":
+def main():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    fut = loop.create_task(main())
+    fut = loop.create_task(async_main())
     loop.run_until_complete(fut)
+
+
+if __name__ == "__main__":
+    main()

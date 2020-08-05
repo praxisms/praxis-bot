@@ -8,6 +8,11 @@ setuptools.setup(
     description="A command line utility used to run Praxis Motorsport's bot.",
     url="https://github.com/mikeholler/praxis-bot",
     packages=setuptools.find_packages(),
+    entry_points={
+        "console_scripts": [
+            "praxisbot = praxisbot.entrypoint:main"
+        ]
+    },
     python_requires=">3.8",
     install_requires=[
         "requests>=2.24.0,<3",

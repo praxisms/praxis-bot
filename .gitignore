@@ -3,3 +3,5 @@
 
 venv
 venv-test
+
+__pycache__/

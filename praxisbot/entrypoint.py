@@ -1,12 +1,14 @@
 import argparse
 import asyncio
 import csv
-import requests
 import logging
+import requests
+from dataclasses import dataclass
 from io import StringIO
-from sys import argv
 from pyracing.client import Client as PyracingClient
 from pyracing.constants import Category
+from sys import argv
+from tabulate import tabulate
 
 
 logger = logging.getLogger(__name__)
@@ -76,18 +78,35 @@ def read_customer_ids(url, customer_id_column_index, max_ids):
     return ids
 
 
+def preformat(message):
+    return "\n".join(["```", message, "```"])
+
+
 def post_message(discord_webhook_url, message):
     requests.post(discord_webhook_url, json={
         "content": message
     })
 
 
-async def get_driver_info(ir: PyracingClient, customer_id: str):
-    stats = await ir.driver_stats(search=str(customer_id))
-    return {
-        "customer_id": customer_id,
-        # "irating": stats.irating,
-    }
+@dataclass(frozen=True)
+class DriverInfo:
+    customer_id: str
+    name: str
+    road_ir: int
+
+
+async def get_driver_info(ir: PyracingClient, customer_id: str) -> DriverInfo:
+    status = await ir.driver_status(cust_id=customer_id)
+    road_ir = await ir.irating(
+        cust_id=customer_id,
+        category=Category.road.value
+    )
+
+    return DriverInfo(
+        customer_id=customer_id,
+        name=status.name,
+        road_ir=road_ir.current().value
+    )
 
 
 async def main():
@@ -103,13 +122,17 @@ async def main():
         max_ids=args.max_members
     )
 
-    await get_driver_info(ir, customer_ids[1])
+    drivers = [await get_driver_info(ir, id_) for id_ in customer_ids]
+    drivers.sort(key=lambda x: x.road_ir, reverse=True)
 
-    pass
-    # post_message(
-    #     discord_webhook_url=args.discord_webhook_url,
-    #     message=f"Here are the customer IDs from the form: {', '.join(customer_ids)}"
-    # )
+    table = tabulate(headers=("Road IR", "Driver Name"), tabular_data=[
+        [d.road_ir, d.name] for d in drivers
+    ])
+
+    post_message(
+        discord_webhook_url=args.discord_webhook_url,
+        message=preformat(table)
+    )
 
 
 if __name__ == "__main__":

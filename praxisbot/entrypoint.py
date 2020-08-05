@@ -3,7 +3,9 @@ import asyncio
 import csv
 import logging
 import requests
+import time
 from dataclasses import dataclass
+from datetime import date, timedelta
 from io import StringIO
 from pyracing.client import Client as PyracingClient
 from pyracing.constants import Category
@@ -62,7 +64,7 @@ def read_customer_ids(url, customer_id_column_index, max_ids):
     r = requests.get(url)
 
     is_first = True
-    ids = list()
+    ids = set()
     for r in csv.reader(StringIO(r.text)):
         if is_first:
             is_first = False
@@ -75,12 +77,13 @@ def read_customer_ids(url, customer_id_column_index, max_ids):
                            f"customer ID at column index "
                            f"{customer_id_column_index}")
         else:
-            ids.append(r[customer_id_column_index].strip())
-    return ids
+            ids.add(r[customer_id_column_index].strip())
+    return list(ids)
 
 
-def preformat(message):
-    return "\n".join(["```", message, "```"])
+def preformat(title, content):
+    pre = "\n".join(["```", content, "```"])
+    return f"{title}\n{pre}"
 
 
 def post_message(discord_webhook_url, message):
@@ -94,6 +97,7 @@ class DriverInfo:
     customer_id: str
     name: str
     road_ir: int
+    oval_ir: int
 
 
 async def get_driver_info(
@@ -111,14 +115,21 @@ async def get_driver_info(
         category=Category.road.value
     )
 
+    oval_ir = await ir.irating(
+        cust_id=customer_id,
+        category=Category.oval.value
+    )
+
     return DriverInfo(
         customer_id=customer_id,
         name=status.name,
-        road_ir=road_ir.current().value
+        road_ir=road_ir.current().value,
+        oval_ir=oval_ir.current().value,
     )
 
 
 async def async_main():
+    start_time = time.time()
     args = parse_arguments(argv[1:])
     ir = PyracingClient(
         username=args.iracing_user,
@@ -133,15 +144,42 @@ async def async_main():
 
     drivers = [await get_driver_info(ir, id_) for id_ in customer_ids]
     drivers = [d for d in drivers if d is not None]
-    drivers.sort(key=lambda x: x.road_ir, reverse=True)
 
-    table = tabulate(headers=("Road IR", "Driver Name"), tabular_data=[
-        [d.road_ir, d.name] for d in drivers
+    post_message(
+        discord_webhook_url=args.discord_webhook_url,
+        message=f"**Daily Digest: {date.today() - timedelta(hours=1)}**"
+    )
+
+    road_ir_table = tabulate(headers=("Road IR", "Driver Name"), tabular_data=[
+        [d.road_ir, d.name]
+        for d in sorted(drivers, key=lambda x: x.road_ir, reverse=True)
     ])
 
     post_message(
         discord_webhook_url=args.discord_webhook_url,
-        message=preformat(table)
+        message=preformat(
+            title="Road iRating Leaderboard",
+            content=road_ir_table,
+        )
+    )
+
+    oval_ir_table = tabulate(headers=("Oval IR", "Driver Name"), tabular_data=[
+        [d.oval_ir, d.name]
+        for d in sorted(drivers, key=lambda x: x.oval_ir, reverse=True)
+    ])
+
+    post_message(
+        discord_webhook_url=args.discord_webhook_url,
+        message=preformat(
+            title="Oval iRating Leaderboard",
+            content=oval_ir_table,
+        )
+    )
+
+    total_time = time.time() - start_time
+    post_message(
+        discord_webhook_url=args.discord_webhook_url,
+        message="Statistic generation took {0:.1f} seconds.".format(total_time)
     )
 
 

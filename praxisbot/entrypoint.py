@@ -9,6 +9,7 @@ from pyracing.client import Client as PyracingClient
 from pyracing.constants import Category
 from sys import argv
 from tabulate import tabulate
+from typing import Optional
 
 
 logger = logging.getLogger(__name__)
@@ -65,7 +66,7 @@ def read_customer_ids(url, customer_id_column_index, max_ids):
     for r in csv.reader(StringIO(r.text)):
         if is_first:
             is_first = False
-        elif len(ids) > max_ids:
+        elif len(ids) >= max_ids:
             logger.warning(f"Found more than {max_ids} rows. "
                            f"Returning the first {max_ids}.")
             break
@@ -95,8 +96,16 @@ class DriverInfo:
     road_ir: int
 
 
-async def get_driver_info(ir: PyracingClient, customer_id: str) -> DriverInfo:
-    status = await ir.driver_status(cust_id=customer_id)
+async def get_driver_info(
+        ir: PyracingClient,
+        customer_id: str
+) -> Optional[DriverInfo]:
+    # noinspection PyBroadException
+    try:
+        status = await ir.driver_status(cust_id="asdlfkj")
+    except Exception:
+        return None
+
     road_ir = await ir.irating(
         cust_id=customer_id,
         category=Category.road.value
@@ -123,6 +132,7 @@ async def async_main():
     )
 
     drivers = [await get_driver_info(ir, id_) for id_ in customer_ids]
+    drivers = [d for d in drivers if d is not None]
     drivers.sort(key=lambda x: x.road_ir, reverse=True)
 
     table = tabulate(headers=("Road IR", "Driver Name"), tabular_data=[

@@ -147,7 +147,7 @@ async def async_main():
 
     post_message(
         discord_webhook_url=args.discord_webhook_url,
-        message=f"**Daily Digest: {date.today() - timedelta(hours=1)}**"
+        message=f"**Daily Digest: {date.today() - timedelta(days=1)}**"
     )
 
     road_ir_table = tabulate(headers=("Road IR", "Driver Name"), tabular_data=[

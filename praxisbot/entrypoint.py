@@ -52,6 +52,7 @@ def parse_arguments(args):
     )
     parser.add_argument(
         "--max-members",
+        type=int,
         default=50,
         help="Maximum number of members to read from CSV. If more members are "
              "present in the CSV than this number, the first N rows will be "
@@ -145,34 +146,47 @@ async def async_main():
     drivers = [await get_driver_info(ir, id_) for id_ in customer_ids]
     drivers = [d for d in drivers if d is not None]
 
+    road_ir_avg = sum([d.road_ir for d in drivers]) // len(drivers)
+    oval_ir_avg = sum([d.oval_ir for d in drivers]) // len(drivers)
+
     post_message(
         discord_webhook_url=args.discord_webhook_url,
         message=f"**Daily Digest: {date.today() - timedelta(days=1)}**"
     )
 
-    road_ir_table = tabulate(headers=("Road IR", "Driver Name"), tabular_data=[
-        [d.road_ir, d.name]
-        for d in sorted(drivers, key=lambda x: x.road_ir, reverse=True)
-    ])
+    road_ir_table = tabulate(
+        headers=("#", "Road IR", "Driver Name"),
+        tabular_data=[
+            [idx + 1, d.road_ir, d.name]
+            for idx, d in enumerate(
+                sorted(drivers, key=lambda x: x.road_ir, reverse=True)
+            )
+        ]
+    )
 
     post_message(
         discord_webhook_url=args.discord_webhook_url,
         message=preformat(
             title="Road iRating Leaderboard",
-            content=road_ir_table,
+            content=f"{road_ir_table}\n\nAverage iR: {road_ir_avg}",
         )
     )
 
-    oval_ir_table = tabulate(headers=("Oval IR", "Driver Name"), tabular_data=[
-        [d.oval_ir, d.name]
-        for d in sorted(drivers, key=lambda x: x.oval_ir, reverse=True)
-    ])
+    oval_ir_table = tabulate(
+        headers=("#", "Oval IR", "Driver Name"),
+        tabular_data=[
+            [idx + 1, d.oval_ir, d.name]
+            for idx, d in enumerate(
+                sorted(drivers, key=lambda x: x.oval_ir, reverse=True)
+            )
+        ]
+    )
 
     post_message(
         discord_webhook_url=args.discord_webhook_url,
         message=preformat(
             title="Oval iRating Leaderboard",
-            content=oval_ir_table,
+            content=f"{oval_ir_table}\n\nAverage iR: {oval_ir_avg}",
         )
     )
 

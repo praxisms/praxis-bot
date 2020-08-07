@@ -1,17 +1,17 @@
 import argparse
 import asyncio
-import csv
 import logging
-import requests
 import time
-from dataclasses import dataclass
 from datetime import date, timedelta
-from io import StringIO
 from pyracing.client import Client as PyracingClient
-from pyracing.constants import Category
 from sys import argv
 from tabulate import tabulate
-from typing import Optional
+
+from praxisbot.iracing import get_driver_info
+from praxisbot.discord_webhook import DiscordWebhook
+from praxisbot.markdown import preformat
+from praxisbot.ext.argparse import MemberSourceArgument
+from praxisbot.members import fetch_customer_ids
 
 
 logger = logging.getLogger(__name__)
@@ -22,18 +22,13 @@ def parse_arguments(args):
         description="Praxis Motorsport's Discord bot"
     )
     parser.add_argument(
-        "--members-csv-url",
-        default="https://docs.google.com/spreadsheets/d/"
-                "1ucMEu7mb30azjjXVk-jgfmULCVL90_wkcjlqQAs7aTU/gviz/tq"
-                "?tqx=out:csv&sheet=Form%20Responses%201",
-        help="Link to CSV file containing iRacing customer IDs in a column."
-    )
-    parser.add_argument(
-        "--members-csv-customer-id-column",
-        type=int,
-        default=2,
-        help="Column (0-indexed) containing iRacing customer IDs. "
-             "Column will be read beginning at row 2, assuming headers."
+        "--member-sources",
+        nargs="+",
+        type=MemberSourceArgument,
+        help='One or more "member source" strings. Examples: '
+             '"csv:2:https://example.com/file.csv" or '
+             '"json:https://example.com/file.json".'
+
     )
     parser.add_argument(
         "--iracing-user",
@@ -61,74 +56,6 @@ def parse_arguments(args):
     return parser.parse_args(args)
 
 
-def read_customer_ids(url, customer_id_column_index, max_ids):
-    r = requests.get(url)
-
-    is_first = True
-    ids = set()
-    for r in csv.reader(StringIO(r.text)):
-        if is_first:
-            is_first = False
-        elif len(ids) >= max_ids:
-            logger.warning(f"Found more than {max_ids} rows. "
-                           f"Returning the first {max_ids}.")
-            break
-        elif len(r) <= customer_id_column_index:
-            logger.warning(f"Member CSV row is {len(r) + 1} rows. Expected "
-                           f"customer ID at column index "
-                           f"{customer_id_column_index}")
-        else:
-            ids.add(r[customer_id_column_index].strip())
-    return list(ids)
-
-
-def preformat(title, content):
-    pre = "\n".join(["```", content, "```"])
-    return f"{title}\n{pre}"
-
-
-def post_message(discord_webhook_url, message):
-    requests.post(discord_webhook_url, json={
-        "content": message
-    })
-
-
-@dataclass(frozen=True)
-class DriverInfo:
-    customer_id: str
-    name: str
-    road_ir: int
-    oval_ir: int
-
-
-async def get_driver_info(
-        ir: PyracingClient,
-        customer_id: str
-) -> Optional[DriverInfo]:
-    # noinspection PyBroadException
-    try:
-        status = await ir.driver_status(cust_id=customer_id)
-    except Exception:
-        return None
-
-    road_ir = await ir.irating(
-        cust_id=customer_id,
-        category=Category.road.value
-    )
-
-    oval_ir = await ir.irating(
-        cust_id=customer_id,
-        category=Category.oval.value
-    )
-
-    return DriverInfo(
-        customer_id=customer_id,
-        name=status.name,
-        road_ir=road_ir.current().value,
-        oval_ir=oval_ir.current().value,
-    )
-
-
 async def async_main():
     start_time = time.time()
     args = parse_arguments(argv[1:])
@@ -136,11 +63,11 @@ async def async_main():
         username=args.iracing_user,
         password=args.iracing_password
     )
+    discord_webhook = DiscordWebhook(args.discord_webhook_url)
 
-    customer_ids = read_customer_ids(
-        url=args.members_csv_url,
-        customer_id_column_index=args.members_csv_customer_id_column,
-        max_ids=args.max_members
+    customer_ids = fetch_customer_ids(
+        sources=args.member_sources,
+        limit=args.max_members
     )
 
     drivers = [await get_driver_info(ir, id_) for id_ in customer_ids]
@@ -149,9 +76,8 @@ async def async_main():
     road_ir_avg = sum([d.road_ir for d in drivers]) // len(drivers)
     oval_ir_avg = sum([d.oval_ir for d in drivers]) // len(drivers)
 
-    post_message(
-        discord_webhook_url=args.discord_webhook_url,
-        message=f"**Daily Digest: {date.today() - timedelta(days=1)}**"
+    discord_webhook.send(
+        f"**Daily Digest: {date.today() - timedelta(days=1)}**"
     )
 
     road_ir_table = tabulate(
@@ -164,13 +90,10 @@ async def async_main():
         ]
     )
 
-    post_message(
-        discord_webhook_url=args.discord_webhook_url,
-        message=preformat(
-            title="Road iRating Leaderboard",
-            content=f"{road_ir_table}\n\nAverage iR: {road_ir_avg}",
-        )
-    )
+    discord_webhook.send(preformat(
+        title="Road iRating Leaderboard",
+        content=f"{road_ir_table}\n\nAverage iR: {road_ir_avg}",
+    ))
 
     oval_ir_table = tabulate(
         headers=("#", "Oval IR", "Driver Name"),
@@ -182,18 +105,14 @@ async def async_main():
         ]
     )
 
-    post_message(
-        discord_webhook_url=args.discord_webhook_url,
-        message=preformat(
-            title="Oval iRating Leaderboard",
-            content=f"{oval_ir_table}\n\nAverage iR: {oval_ir_avg}",
-        )
-    )
+    discord_webhook.send(preformat(
+        title="Oval iRating Leaderboard",
+        content=f"{oval_ir_table}\n\nAverage iR: {oval_ir_avg}",
+    ))
 
     total_time = time.time() - start_time
-    post_message(
-        discord_webhook_url=args.discord_webhook_url,
-        message="Statistic generation took {0:.1f} seconds.".format(total_time)
+    discord_webhook.send(
+        "Statistic generation took {0:.1f} seconds.".format(total_time)
     )
 
 

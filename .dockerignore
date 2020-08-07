@@ -1,0 +1,22 @@
+# Ignore Git and Docker stuff
+.git
+.cache
+
+# Ignore generated python artifacts
+dist
+*.egg-info
+build
+venv
+venv-test
+**/__pycache__
+**/*.pyc
+
+# Ignore IDE garbage
+.idea
+**/*.iml
+
+# Ignore temporary files, etc.
+**/*~
+**/*.log
+**/.DS_Store
+**/Thumbs.db

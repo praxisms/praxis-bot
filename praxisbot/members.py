@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from io import StringIO
 from typing import List, Set, Union
 
-from praxisbot.ext.collections import flatten
-from praxisbot.ext.conversion import int_or_none
+from extensions.collections import flatten
+from praxisbot.extensions.conversion import int_or_none
 
 
 __all__ = [

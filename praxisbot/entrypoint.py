@@ -10,7 +10,7 @@ from tabulate import tabulate
 from praxisbot.iracing import get_driver_info
 from praxisbot.discord_webhook import DiscordWebhook
 from praxisbot.markdown import preformat
-from praxisbot.ext.argparse import MemberSourceArgument
+from praxisbot.extensions.argparse import MemberSourceArgument
 from praxisbot.members import fetch_customer_ids
 
 

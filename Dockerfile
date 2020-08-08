@@ -1,12 +1,11 @@
-FROM python:3.8-alpine3.12
+FROM python:3.8-slim-buster
 
 ARG   apsw_version="3.32.2-r1"
 ARG sqlite_version="3.32.2"
 
-RUN apk add --no-cache \
-  g++ \
+RUN apt-get update && apt-get install -y \
+  build-essential \
   git \
-  make \
   wget
 
 WORKDIR /praxis-bot

@@ -1,0 +1,5 @@
+__all__ = [
+    "STARTING_IRATING"
+]
+
+STARTING_IRATING = 1350

@@ -1,3 +1,6 @@
+humanize==2.5.0
 requests==2.24.0
 tabulate==0.8.7
+numpy==1.19.1
+scipy==1.5.2
 git+https://github.com/Esterni/pyracing@2c072619ae1ef84e6452b1e67f7e1d19b2e36f4c

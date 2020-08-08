@@ -1,17 +1,21 @@
 import argparse
 import asyncio
+import datetime as dt
+import humanize
 import logging
-import time
 from datetime import date, timedelta
 from pyracing.client import Client as PyracingClient
 from sys import argv
-from tabulate import tabulate
 
 from praxisbot.iracing import get_driver_info
 from praxisbot.discord_webhook import DiscordWebhook
 from praxisbot.markdown import preformat
 from praxisbot.extensions.argparse import MemberSourceArgument
 from praxisbot.members import fetch_customer_ids
+from praxisbot.text_views import (
+    oval_ir_leaderboard_table,
+    road_ir_leaderboard_table,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -57,7 +61,8 @@ def parse_arguments(args):
 
 
 async def async_main():
-    start_time = time.time()
+    script_run_start = dt.datetime.utcnow()
+
     args = parse_arguments(argv[1:])
     ir = PyracingClient(
         username=args.iracing_user,
@@ -73,21 +78,17 @@ async def async_main():
     drivers = [await get_driver_info(ir, id_) for id_ in customer_ids]
     drivers = [d for d in drivers if d is not None]
 
-    road_ir_avg = sum([d.road_ir for d in drivers]) // len(drivers)
-    oval_ir_avg = sum([d.oval_ir for d in drivers]) // len(drivers)
+    road_ir_avg = sum([d.current_road_ir for d in drivers]) // len(drivers)
+    oval_ir_avg = sum([d.current_oval_ir for d in drivers]) // len(drivers)
 
     discord_webhook.send(
         f"**Daily Digest: {date.today() - timedelta(days=1)}**"
     )
 
-    road_ir_table = tabulate(
-        headers=("#", "Road IR", "Driver Name"),
-        tabular_data=[
-            [idx + 1, d.road_ir, d.name]
-            for idx, d in enumerate(
-                sorted(drivers, key=lambda x: x.road_ir, reverse=True)
-            )
-        ]
+    road_ir_table = road_ir_leaderboard_table(
+        drivers=drivers,
+        d1=script_run_start - dt.timedelta(days=7),
+        d2=script_run_start
     )
 
     discord_webhook.send(preformat(
@@ -95,14 +96,10 @@ async def async_main():
         content=f"{road_ir_table}\n\nAverage iR: {road_ir_avg}",
     ))
 
-    oval_ir_table = tabulate(
-        headers=("#", "Oval IR", "Driver Name"),
-        tabular_data=[
-            [idx + 1, d.oval_ir, d.name]
-            for idx, d in enumerate(
-                sorted(drivers, key=lambda x: x.oval_ir, reverse=True)
-            )
-        ]
+    oval_ir_table = oval_ir_leaderboard_table(
+        drivers=drivers,
+        d1=script_run_start - dt.timedelta(days=7),
+        d2=script_run_start
     )
 
     discord_webhook.send(preformat(
@@ -110,9 +107,10 @@ async def async_main():
         content=f"{oval_ir_table}\n\nAverage iR: {oval_ir_avg}",
     ))
 
-    total_time = time.time() - start_time
     discord_webhook.send(
-        "Statistic generation took {0:.1f} seconds.".format(total_time)
+        "Statistic generation took {}".format(
+            humanize.naturaldelta(dt.datetime.utcnow() - script_run_start)
+        )
     )
 
 

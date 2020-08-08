@@ -15,7 +15,7 @@ setuptools.setup(
     },
     python_requires=">3.8",
     install_requires=[
-        "humanize>=2.5.0,<3"
+        "humanize>=2.5.0,<3",
         "requests>=2.24.0,<3",
         "tabulate>=0.8,<1",
         "numpy>=1.19.1,<2",

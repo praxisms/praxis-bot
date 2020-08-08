@@ -17,6 +17,9 @@ setuptools.setup(
     install_requires=[
         "requests>=2.24.0,<3",
         "tabulate>=0.8,<1",
-        "pyracing@git+https://github.com/Esterni/pyracing@2c072619ae1ef84e6452b1e67f7e1d19b2e36f4c"
+        ''.join([
+            "pyracing@git+https://github.com/Esterni/pyracing",
+            "@2c072619ae1ef84e6452b1e67f7e1d19b2e36f4c",
+        ])
     ]
 )

@@ -14,5 +14,6 @@ RUN pip install \
     https://github.com/rogerbinns/apsw/releases/download/${apsw_version}/apsw-${apsw_version}.zip \
     --global-option=fetch --global-option=--version --global-option=${sqlite_version} --global-option=--all \
     --global-option=build --global-option=--enable-all-extensions
+RUN pip install -r requirements.txt
 RUN python setup.py install
 ENTRYPOINT ["praxisbot"]

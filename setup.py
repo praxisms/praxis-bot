@@ -14,15 +14,4 @@ setuptools.setup(
         ]
     },
     python_requires=">3.8",
-    install_requires=[
-        "humanize>=2.5.0,<3",
-        "requests>=2.24.0,<3",
-        "tabulate>=0.8,<1",
-        "numpy>=1.19.1,<2",
-        "scipy>=1.5.2,<2",
-        ''.join([
-            "pyracing@git+https://github.com/Esterni/pyracing",
-            "@2c072619ae1ef84e6452b1e67f7e1d19b2e36f4c",
-        ])
-    ]
 )

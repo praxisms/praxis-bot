@@ -6,7 +6,7 @@ ARG sqlite_version="3.32.2"
 RUN apt-get update && apt-get install -y \
   build-essential \
   git \
-  wget
+  wget gcc gfortran python-dev libopenblas-dev liblapack-dev cython
 
 WORKDIR /praxis-bot
 COPY . .
@@ -14,5 +14,6 @@ RUN pip install \
     https://github.com/rogerbinns/apsw/releases/download/${apsw_version}/apsw-${apsw_version}.zip \
     --global-option=fetch --global-option=--version --global-option=${sqlite_version} --global-option=--all \
     --global-option=build --global-option=--enable-all-extensions
+pip install -r requirements.txt
 RUN python setup.py install
 ENTRYPOINT ["praxisbot"]

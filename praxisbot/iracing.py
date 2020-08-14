@@ -20,7 +20,7 @@ class DriverInfo:
 
     @property
     def current_oval_ir(self) -> int:
-        return self.road_ir_history[-1][1]
+        return self.oval_ir_history[-1][1]
 
     @property
     def road_ir_interpolation(self) -> Callable[[dt.datetime], int]:
